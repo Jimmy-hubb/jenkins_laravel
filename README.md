@@ -1,59 +1,514 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel CI/CD Pipeline with Jenkins and GitHub Actions
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Overview
 
-## About Laravel
+Project ini merupakan demonstrasi implementasi **CI/CD (Continuous Integration & Continuous Deployment)** menggunakan:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Jenkins Automation Server**
+- **GitHub Actions**
+- **Laravel Framework**
+- **WSL (Ubuntu Environment)**
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Pipeline ini digunakan untuk melakukan proses:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Automated Build
+- Automated Testing
+- Continuous Integration
+- Continuous Deployment Preparation
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+# CI/CD Architecture
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```
+Developer
+   ↓
+GitHub Repository
+   ↓
+GitHub Actions (CI)
+   ↓
+Jenkins Pipeline
+   ↓
+Build + Testing Laravel Application
+```
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Concept Notes
 
-### Premium Partners
+1. **Jenkins Automation Server** digunakan untuk menjalankan proses **CI/CD** seperti build dan testing aplikasi secara otomatis.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+2. **GitLab Pipeline** sebenarnya juga dapat melakukan CI/CD, namun untuk implementasi pipeline yang lebih kompleks biasanya memerlukan framework tambahan yang lebih advanced.
 
-## Contributing
+3. Repository seperti **GitHub atau GitLab** dapat digunakan sebagai **cloud storage untuk source code**, sedangkan proses automation dijalankan oleh Jenkins.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+4. Resource besar atau proses build yang berat dapat ditempatkan di **Jenkins Server** agar repository hosting tetap ringan.
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Part 1 — Jenkins Installation (WSL)
 
-## Security Vulnerabilities
+## Masuk ke WSL
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+wsl
+sudo su
+cd ~
+cd /home/aksal
+```
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Install Java JDK
+
+Jenkins membutuhkan Java agar dapat berjalan.
+
+```bash
+sudo apt update
+sudo apt install openjdk-17-jdk -y
+```
+
+Cek instalasi Java:
+
+```bash
+java -version
+```
+
+---
+
+## Tambahkan Jenkins Repository Key
+
+```bash
+sudo wget -O /etc/apt/keyrings/jenkins-keyring.asc \
+https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+```
+
+---
+
+## Tambahkan Jenkins Repository
+
+```bash
+echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc]" \
+https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+/etc/apt/sources.list.d/jenkins.list > /dev/null
+```
+
+---
+
+## Install Jenkins
+
+```bash
+sudo apt install jenkins -y
+sudo systemctl start jenkins
+sudo systemctl enable jenkins
+```
+
+---
+
+## Cek apakah Jenkins berjalan
+
+```bash
+sudo lsof -i :8080
+```
+
+Jika Jenkins berjalan maka port **8080** akan aktif.
+
+---
+
+## Buka Jenkins Dashboard
+
+```
+http://localhost:8080
+```
+
+Ambil password awal Jenkins:
+
+```bash
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+```
+
+Copy password tersebut ke halaman login Jenkins.
+
+---
+
+## Install Jenkins Plugins
+
+Pilih:
+
+```
+Install Suggested Plugins
+```
+
+Setelah selesai, Jenkins akan masuk ke **Dashboard**.
+
+---
+
+## Test Jenkins Pipeline
+
+Buat job pipeline sederhana:
+
+```
+New Item
+→ Pipeline
+```
+
+Masukkan contoh script:
+
+```groovy
+pipeline {
+    agent any
+
+    stages {
+        stage('Hello') {
+            steps {
+                echo 'Hello World'
+            }
+        }
+    }
+}
+```
+
+Klik:
+
+```
+Build Now
+```
+
+Lihat hasilnya di:
+
+```
+Console Output
+```
+
+Jika berhasil akan muncul:
+
+```
+Finished: SUCCESS
+```
+
+---
+
+# Part 2 — Laravel Project Setup
+
+## Buat folder project
+
+```bash
+cd C:\Users\USERNAME\Documents
+mkdir website
+cd website
+mkdir laravel_jenkins
+```
+
+---
+
+## Install Laravel
+
+```bash
+composer create-project laravel/laravel laravel-ci
+```
+
+Masuk ke project:
+
+```bash
+cd laravel-ci
+```
+
+---
+
+## Setup Environment
+
+```bash
+copy .env.example .env
+php artisan key:generate
+```
+
+---
+
+## Jalankan Laravel
+
+```bash
+php artisan serve
+```
+
+Buka di browser:
+
+```
+http://127.0.0.1:8000
+```
+
+---
+
+# Part 3 — CI/CD using GitHub Actions
+
+Push project ke GitHub terlebih dahulu.
+
+Buat folder workflow:
+
+```
+.github/workflows
+```
+
+Buat file:
+
+```
+laravel.yml
+```
+
+---
+
+## GitHub Actions Workflow
+
+```yaml
+name: Laravel CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  laravel-tests:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Copy ENV
+        run: cp .env.example .env
+
+      - name: Generate key
+        run: php artisan key:generate
+
+      - name: Run tests
+        run: php artisan test
+```
+
+Atau bisa dibuat melalui menu:
+
+```
+GitHub → Actions → Setup Workflow
+```
+
+---
+
+# Part 4 — CI/CD using Jenkins
+
+## Install Required Jenkins Plugins
+
+Masuk ke:
+
+```
+Manage Jenkins → Plugins
+```
+
+Install plugin berikut:
+
+- Git plugin
+- GitHub Integration
+- Credentials Binding
+- Pipeline
+- Pipeline: Stage View
+
+---
+
+## Install PHP & Composer on Jenkins (WSL)
+
+```bash
+sudo apt install php php-cli php-mbstring php-xml php-curl unzip -y
+sudo apt install composer -y
+```
+
+---
+
+# Jenkins Pipeline Script
+
+Buat file di root project:
+
+```
+Jenkinsfile
+```
+
+Isi pipeline:
+
+```groovy
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Clone Repository') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'composer install --no-interaction'
+            }
+        }
+
+        stage('Setup Laravel') {
+            steps {
+                sh 'cp .env.example .env'
+                sh 'php artisan key:generate'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'php artisan test'
+            }
+        }
+
+    }
+}
+```
+
+Push file ini ke GitHub.
+
+---
+
+# Jenkins Pipeline Configuration
+
+Masuk Jenkins:
+
+```
+New Item → Pipeline
+```
+
+Nama:
+
+```
+laravel-ci
+```
+
+---
+
+## Pipeline Configuration
+
+```
+Definition → Pipeline script from SCM
+```
+
+SCM:
+
+```
+Git
+```
+
+Repository:
+
+```
+https://github.com/Aqshalikhsan/jenkins_laravel.git
+```
+
+Branch:
+
+```
+*/main
+```
+
+---
+
+# GitHub Credential Setup
+
+Jika Jenkins belum terhubung ke GitHub:
+
+Masuk ke:
+
+```
+Manage Jenkins → Credentials
+```
+
+Tambah credential:
+
+```
+Kind: Username with password
+Username: GitHub username
+Password: GitHub Personal Access Token
+```
+
+---
+
+## Generate GitHub Token
+
+```
+GitHub → Settings
+→ Developer Settings
+→ Personal Access Token
+→ Generate Token (Classic)
+```
+
+Centang permission:
+
+```
+repo
+workflow
+```
+
+Copy token dan masukkan ke Jenkins.
+
+---
+
+# Run Jenkins Pipeline
+
+Klik:
+
+```
+Build Now
+```
+
+Pipeline akan menjalankan:
+
+```
+Clone Repository
+↓
+Composer Install
+↓
+Laravel Setup
+↓
+Run Tests
+```
+
+Jika berhasil:
+
+```
+Finished: SUCCESS
+```
+
+---
+
+# Final CI/CD Workflow
+
+```
+Developer Push
+↓
+GitHub Repository
+↓
+GitHub Actions CI
+↓
+Jenkins Pipeline
+↓
+Build + Test Laravel Application
+```
+
+---
+
+# Author
+
+**Aqshal Ikhsan**
+
+DevOps Learning Project  
+Laravel CI/CD with Jenkins and GitHub Actions
