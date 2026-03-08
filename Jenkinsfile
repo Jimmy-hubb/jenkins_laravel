@@ -11,7 +11,7 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'composer install'
+                sh 'composer install --no-interaction'
             }
         }
 
@@ -22,7 +22,7 @@ pipeline {
             }
         }
 
-        stage('Run Test') {
+        stage('Run Tests') {
             steps {
                 sh 'php artisan test'
             }
